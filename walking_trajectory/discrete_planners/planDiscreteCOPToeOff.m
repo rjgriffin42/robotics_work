@@ -1,4 +1,4 @@
-function zmpTrajectory = planCoPToeOff(leftFootPoseInitial, rightFootPoseInitial, stepPlan, doubleSupportRatio, toeOffRatio, heelStrikeRatio, copInitial, t)
+function copTrajectory = planCoPToeOff(leftFootPoseInitial, rightFootPoseInitial, stepPlan, doubleSupportRatio, toeOffRatio, heelStrikeRatio, copInitial, t)
   
   % toe off
   toeOffset = [0.125, 0, 0, 1];
@@ -8,13 +8,13 @@ function zmpTrajectory = planCoPToeOff(leftFootPoseInitial, rightFootPoseInitial
   heelStrikeMinimumAngle = 0.60; % > 0 radians
   heelStrikeMaximumAngle = 1.22; % < pi/2 radians
 
-  zmpTrajectory = zeros(length(t), 3);
+  copTrajectory = zeros(length(t), 3);
   duration = {};
   doubleSupportPoses = {};
   singleSupportPoses = {};
-  doubleSupportPostion = {};
-  heelStrikePosition = {};
-  toeOffPosition = {};
+  doubleSupportPositions = {};
+  heelStrikePositions = {};
+  toeOffPositions = {};
 
   leftFootPose = leftFootPoseInitial;
   rightFootPose = rightFootPoseInitial;
@@ -38,27 +38,45 @@ function zmpTrajectory = planCoPToeOff(leftFootPoseInitial, rightFootPoseInitial
   for i = 1:length(stepPlan)
     % compute toe positions
     if i == 1
-      doubleSupportPostions{i} = copInitial;
+      doubleSupportPositions{i} = copInitial;
     else
-      doubleSupportPostions{i} = toeOffPosition{i-1};
+      doubleSupportPositions{i} = toeOffPositions{i-1};
     end
 
-    singleSupportStepOffset = (singleSupportPoses{i + 1}(1:3) -
+    singleSupportStepOffset = (singleSupportPoses{i + 1}(1:3) - ...
                               singleSupportPoses{i}(1:3))';
+                          
     singleSupportHeelOffset = makehgtform('xrotate', singleSupportPoses{i}(4)) * ...
                               makehgtform('yrotate', singleSupportPoses{i}(5)) * ...
                               makehgtform('zrotate', singleSupportPoses{i}(6)) * ...
                               heelOffset';
     singleSupportHeelOffset = singleSupportHeelOffset(1:3) / ...
                               singleSupportHeelOffset(4);
+                          
     cosThetaHeel = singleSupportStepOffset' * singleSupportHeelOffset / ...
                    (sqrt(singleSupportStepOffset' * singleSupportStepOffset) * ...
-                   (sqrt(singleSupportHeelOffset' * singleSupportHeelOffset);
+                    sqrt(singleSupportHeelOffset' * singleSupportHeelOffset));
     cosThetaHeel = cosThetaHeel - cos(heelStrikeMaximumAngle);
     cosThetaHeel = cosThetaHeel / (cos(heelStrikeMinimumAngle) - ...
-                                   cos(heelStrikeMaximumAngle);
+                                   cos(heelStrikeMaximumAngle));
     cosThetaHeel = max(min(cosThetaHeel, 1), 0);
-    toeOffPosition{i} = singleSupportPoses{i}(1:3) + ...
+    
+    heelStrikePositions{i} = singleSupportPoses{i}(1:3) +...
+        heelStrikeRatio * cosThetaHeel * singleSupportHeelOffset';
+    
+    singleSupportToeOffset = makehgtform('xrotate', singleSupportPoses{i}(4)) * ...
+                             makehgtform('yrotate', singleSupportPoses{i}(5)) * ...
+                             makehgtform('zrotate', singleSupportPoses{i}(6)) * ...
+                             toeOffset';
+    singleSupportToeOffset = singleSupportToeOffset(1:3) / singleSupportToeOffset(4);
+    cosThetaToe = singleSupportStepOffset' * singleSupportToeOffset / ...
+        (sqrt(singleSupportStepOffset' * singleSupportStepOffset) * ...
+        sqrt(singleSupportToeOffset' * singleSupportToeOffset));
+    cosThetaToe = cosThetaToe - cos(toeOffMaximumAngle);
+    cosThetaToe = cosThetaToe / (cos(toeOffMinimumAngle) - cos(toeOffMaximumAngle));
+    cosThetaToe = max(min(cosThetaToe, 1), 0);
+    
+    toeOffPositions{i} = singleSupportPoses{i}(1:3) + ...
                         toeOffRatio * cosThetaToe * singleSupportToeOffset';
   end
 
@@ -70,18 +88,18 @@ function zmpTrajectory = planCoPToeOff(leftFootPoseInitial, rightFootPoseInitial
                           t < timeInitial + duration{i});
 
     for j = 1:3
-      xInitial = [doubleSupportPosition{i}(j) 0];
-      xFinal = [heelStrikePosition{i}(j) 0];
-      X = computeCubicSplineTrajectory(xInitial, xFinal, t(doubleSupportIndex));
-      zmpTrajectory(doubleSupportIndex, j) = X(:, 1);
+      xInitial = [doubleSupportPositions{i}(j) 0];
+      xFinal = [heelStrikePositions{i}(j) 0];
+      copTrajectories = computeCubicSplineTrajectory(xInitial, xFinal, t(doubleSupportIndex));
+      copTrajectory(doubleSupportIndex, j) = copTrajectories(:, 1);
     end
     for j = 1:3
-      xInitial = [heelStrikePosition{i}(j) 0];
-      xFinal = [toeOffPosition{i}(j) 0];
-      X = computeCubicSplineTrajectory(xInitial, xFinal, t(doubleSupportIndex));
-      zmpTrajectory(singleSupportIndex, j) = X(:,1);
+      xInitial = [heelStrikePositions{i}(j) 0];
+      xFinal = [toeOffPositions{i}(j) 0];
+      copTrajectories = computeCubicSplineTrajectory(xInitial, xFinal, t(singleSupportIndex));
+      copTrajectory(singleSupportIndex, j) = copTrajectories(:, 1);
     end
-    tInitial = tInitial + duration{i};
+    timeInitial = timeInitial + duration{i};
   end
-  zmpTrajectory(end, :) = toeOffPosition{i}(1:3);
+  copTrajectory(end, :) = toeOffPositions{i}(1:3);
 end

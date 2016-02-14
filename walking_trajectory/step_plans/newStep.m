@@ -1,4 +1,4 @@
-function step = new_step(foot, pose, duration)
+function step = newStep(foot, pose, duration)
   step.foot = foot;
   step.pose = pose;
   step.duration = duration;

@@ -1,4 +1,4 @@
-function b = compute_minimum_jerk_coefficients(x_initial, x_final)
+function coefficients = computeMinimumJerkCoefficients(xInitial, xFinal)
   % returns 'b_k' coefficients for minimum jerk trajectory computation
   % see "Jerk-Bounded Manipulator Trajectory Planning: Design for
   % Real-Time Applications," S. Macfarlane and E. Croft
@@ -11,6 +11,6 @@ function b = compute_minimum_jerk_coefficients(x_initial, x_final)
       -10  -6.0 -1.5  10  -4.0  0.5;
        15   8.0  1.5 -15   7.0 -1.0;
       -6.0 -3.0 -0.5  6   -3.0  0.5];
-  x = [x_initial(1) x_initial(2) x_initial(3) x_final(1) x_final(2) x_final(3)]';
-  b = A*x;
+  boundaries = [xInitial(1) xInitial(2) xInitial(3) xFinal(1) xFinal(2) xFinal(3)]';
+  coefficients = A*boundaries;
 end

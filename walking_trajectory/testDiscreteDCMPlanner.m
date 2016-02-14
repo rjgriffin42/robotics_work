@@ -15,6 +15,9 @@ toeOffRatio = 0.7;
 heelStrikeRatio = 0.0;
 
 % define LQR parameters
+Q = 1e-2;
+R = 1e-4;
+F = 1e6;
 
 % define initial conditions
 leftFootPoseInitial = [0, 0.1, 0, 0, 0, 0];
@@ -22,32 +25,32 @@ rightFootPoseInitial = [0,-0.1, 0, 0, 0, 0];
 comInitial = [0, 0, 0.85];
 comDotInitial = [0, 0, 0];
 comDotDotInitial = [0, 0, 0];
-copInitial = [comDotInitial(1) comDotInitial(2)
-              (leftFootPoseInitial(3) + rightFootPoseInitial(3)];
+copInitial = [comDotInitial(1) comDotInitial(2) ...
+              (leftFootPoseInitial(3) + rightFootPoseInitial(3))];
 omegaInitial = 1/sqrt(9.81/comDotInitial(3));
 dcmInitial = comDotInitial + omegaInitial * comDotInitial;
 dcmDotInitial = zeros(1,3);
 
 % define step plan
-stepPlan = forward_step_plan();
+stepPlan = forwardStepPlan();
 
 % compute discrete time vector
-timeVector = compute_step_plan_time_vector(stepPlan, plannerDT);
+timeVector = computeStepPlanTimeVector(stepPlan, plannerDT);
 
 % compute inertial step plan
-stepPlan = transform_step_plan_to_inertial_frame(leftFootPoseInitial,
+stepPlan = transformStepPlanToInertialFrame(leftFootPoseInitial, ...
               rightFootPoseInitial, stepPlan);
 
 % plan cop trajectory
-copTrajectory = planCoPToeOff(leftFootPoseInitial, rightFootPoseInitial, ...
+copTrajectory = planDiscreteCOPToeOff(leftFootPoseInitial, rightFootPoseInitial, ...
     stepPlan, doubleSupportRatio, toeOffRatio, heelStrikeRatio, copInitial, ...
     timeVector);
 
 % plan com height trajectory
 [comHeightTrajectory, comDotHeightTrajectory, comDotDotHeightTrajectory] = ...
-    planCoMFlatHeightTrajectory(leftFootPose, rightFootPose, stepPlan, ...
-    comHeightNominal, doubleSupportRatio, comInitial, comDotInitial,
-    comDotDotInitial, timeVector);
+    planDiscreteCoMFlatHeightTrajectory(leftFootPoseInitial, ...
+    rightFootPoseInitial, stepPlan, comHeightNominal, doubleSupportRatio, ...
+    comInitial, comDotInitial, comDotDotInitial, timeVector);
 
 % plan angular momentum rate of change
 tauTrajectory = zeros(size(copTrajectory));
@@ -57,11 +60,24 @@ for i = 1:length(timeVector)
 end
 
 % plan cmp trajectory
-cmpTrajectory = planCmpTrajectory(copTrajectory, tauTrajectory, ...
+cmpTrajectory = planDiscreteCMPTrajectory(copTrajectory, tauTrajectory, ...
     comDotDotHeightTrajectory, mass, timeVector);
 
 % plan omega trajectory
-[omegaTrajectory, omegaDotTrajectory] = planOmegaTrajectory(cmpTrajectory, ...
-    comHeightTrajectory, comDotHeightTrajectory, comDotDotHeightTrajectory, ...
-    timeVector);
+[omegaTrajectory, omegaDotTrajectory] = ...
+    planDiscreteOmegaTrajectory(cmpTrajectory, comHeightTrajectory, ...
+    comDotHeightTrajectory, comDotDotHeightTrajectory, timeVector);
 
+% plan vrp trajectory
+vrpTrajectory = planDiscreteVRPTrajectory(cmpTrajectory, omegaTrajectory, ...
+    omegaDotTrajectory, timeVector);
+
+% plan dcm trajectory
+[dcmTrajectory, dcmDotTrajectory, vrpTrajectory] = ...
+    planDiscreteDCMHybrid(cmpTrajectory, leftFootPoseInitial, ...
+    rightFootPoseInitial, stepPlan, omegaTrajectory, omegaDotTrajectory, ...
+    dcmInitial, dcmDotInitial, timeVector, Q, R, F);
+
+% plan com trajectory
+[comTrajectory, comDotTrajectory] = planDiscreteCoMGivenDCM(dcmTrajectory, ...
+    omegaTrajectory, comInitial, timeVector);

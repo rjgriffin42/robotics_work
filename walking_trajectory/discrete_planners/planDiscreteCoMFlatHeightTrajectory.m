@@ -1,4 +1,8 @@
-function [comHeightTrajectory, comDotHeightTrajectory, comDotDotHeightTrajectory] = planCoMFlatHeightTrajectory(leftFootPoseInitial, rightFootPoseInitial, comHeightInitial, doubleSupportRatio, comInitial, comDotInitial, comDotDotInitial, timeVector)
+function [comHeightTrajectory, comDotHeightTrajectory, comDotDotHeightTrajectory]=...
+    planCoMFlatHeightTrajectory(leftFootPoseInitial, rightFootPoseInitial,...
+    stepPlan, comHeightNominal, doubleSupportRatio, comInitial, comDotInitial,...
+    comDotDotInitial, timeVector)
+
   duration = {};
   doubleSupportPoses = {};
   singleSupportPoses = {};
@@ -62,21 +66,21 @@ function [comHeightTrajectory, comDotHeightTrajectory, comDotDotHeightTrajectory
     timeInitial = timeWaypoint(end);
     heightInitial = heightWaypoint(end);
   end
-  timeWaypoint(end) = timeVector(end)
+  timeWaypoint(end) = timeVector(end);
 
   % compute height trajectories
-  comHeightTrajectory = comInitial * ones(lenght(timeVector), 1);
-  comDotHeightTrajectory = comDotInitial * zeros(length(timeVector), 1);
-  comDotDotHeightTrajectory = comDotDotInitial * zeros(length(timeVector), 1);
-  for i = 1:length(timeWaypoint) - 1
-    index = (timeWaypoint(i) < 1 & timeVector <= timeWaypoint(i+1));
+  comHeightTrajectory = comInitial(3) * ones(length(timeVector), 1);
+  comDotHeightTrajectory = comDotInitial(3) * zeros(length(timeVector), 1);
+  comDotDotHeightTrajectory = comDotDotInitial(3) * zeros(length(timeVector), 1);
+  for i = 1:(length(timeWaypoint) - 1)
+    index = (timeWaypoint(i) < timeVector & timeVector <= timeWaypoint(i+1));
     initialConditions = [heightWaypoint(i) heightDotWaypoint(i) ...
         heightDotDotWaypoint(i)];
     finalConditions = [heightWaypoint(i+1) heightDotWaypoint(i+1) ...
         heightDotDotWaypoint(i+1)];
-    trajectories = compute_minimum_jerk_trajectory(initialConditions, ...
+    trajectories = computeMinimumJerkTrajectory(initialConditions, ...
         finalConditions, timeVector(index));
-    comHeight(index = trajectories(:, 1);
+    comHeight(index) = trajectories(:, 1);
     comDotHeight(index) = trajectories(:, 2);
     comDotDotHeight(index) = trajectories(:, 3);
   end
