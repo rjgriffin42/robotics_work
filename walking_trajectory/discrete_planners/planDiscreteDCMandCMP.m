@@ -1,8 +1,9 @@
 function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory] = ...
-    planDCMandCMP(copTrajectory, leftFootPose, rightFootPose, stepPlan, ...
+    planDCMandCMP(copTrajectory, leftFootPose, rightFootPose, footstepPlan, ...
     omegaTrajectory, omegaDotTrajectory, dcmInitial, dcmDotInitial, timeVector,...
-    Q, R, F, P, N)
+    Q, R, F, P, C, N)
 
+  stepPlan = footstepPlan.stepPlan;
   gravity = 9.81;
 
   % compute vrp reference. Assuming CMP and CoP equivalence for now.
@@ -49,8 +50,6 @@ function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory] = ...
   dcmDotOriginalTrajectory = dcmDotTrajectory;
   vrpOriginalTrajectory = vrpTrajectory;
 
-
-
   % initialize state matrices
   timeVector = timeVector';
   dt = timeVector(2) - timeVector(1);
@@ -79,6 +78,24 @@ function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory] = ...
   PhiY0 = Ck * PhiX0;
   PhiYu = Ck * PhiXu;
 
+  % compute desired step location weight
+  index = 1;
+  planLength = length(stepPlan);
+  heelStrikeIndices = footstepPlan.heelStrikeIndices;
+  for i = 1:(planLength-1)
+    for j = heelStrikeIndices(i):footstepPlan.singleSupportIndices(i+1)
+      footPose(index, :) = stepPlan{i}.pose(1:2);
+      PhiX0_filtered(index, :) = PhiX0(2*j-1, :);
+      PhiXu_filtered(index, :) = PhiXu(2*j-1, :);
+      index = index + 1;
+    end
+  end
+  footPose(index, :) = stepPlan{length(stepPlan)}.pose(1:2);
+  PhiX0_filtered(index, :) = PhiX0(2*heelStrikeIndices(planLength)-1, :);
+  PhiXu_filtered(index, :) = PhiXu(2*heelStrikeIndices(planLength)-1, :);
+
+
+
   % compute optimal control trajectory using QP differential
   xInitial = [dcmInitial; dcmDotInitial];
   xFinal = [dcmTrajectory(N, :); dcmDotTrajectory(N, :)];
@@ -95,16 +112,19 @@ function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory] = ...
   Gsolve = zeros(2*N, 2*N);
   gsolve = zeros(2*N, 1);
   Gsolve(1:N, 1:N) = Q*PhiYu'*PhiYu + F*PhiXu(end-1:end, :)'*PhiXu(end-1:end, :) ...
-      + R*eye(N, N);
+      + R*eye(N, N) + C*PhiXu_filtered'*PhiXu_filtered;
   Gsolve(1:N, N+1:2*N) = -Q*PhiYu';
   Gsolve(N+1:2*N, 1:N) = -Q*PhiYu;
   Gsolve(N+1:2*N, N+1:2*N) = (Q + P) * eye(N, N);
   for i = 1:2
     gsolve(1:N, 1) = Q*PhiYu'*(PhiY0*xInitial(:, i) - copTrajectory(1:N, i)) + ...
-        F*PhiXu(end-1:end, :)'*(PhiX0(end-1:end, :)*xInitial(:, i) - xFinal(:, i));
+        F*PhiXu(end-1:end, :)'*(PhiX0(end-1:end, :)*xInitial(:, i) - xFinal(:, i))...
+        + C*PhiXu_filtered'*(PhiX0_filtered*xInitial(:,i) - footPose(:, i));
     gsolve(N+1:2*N, 1) = Q*(copTrajectory(1:N, i) - PhiY0*xInitial(:, i));
     U_alt(:, i) = Gsolve \ (-gsolve);
   end
+
+  knot_x = PhiX0_filtered*xInitial(:,1:2) + PhiXu_filtered*U_alt(1:N,1:2);
 
   % compute dcm and dcmdot trajectories using old method
   for i = 1:2

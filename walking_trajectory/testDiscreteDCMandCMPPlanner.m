@@ -18,7 +18,8 @@ heelStrikeRatio = 0.0;
 Q = 1;
 R = 1e-4;
 F = 1e6;
-P = 1e-1;
+P = 1e1;
+C = 1e3;
 
 % define initial conditions
 leftFootPoseInitial = [0, 0.1, 0, 0, 0, 0];
@@ -37,11 +38,13 @@ stepPlan = forwardStepPlan();
 
 % compute discrete time vector
 timeVector = computeStepPlanTimeVector(stepPlan, plannerDT);
-N = min(500, length(timeVector));
+N = min(length(timeVector), length(timeVector));
 
 % compute inertial step plan
 stepPlan = transformStepPlanToInertialFrame(leftFootPoseInitial, ...
               rightFootPoseInitial, stepPlan);
+
+footstepPlan = computeFootstepPlan(stepPlan, doubleSupportRatio, plannerDT);
 
 % plan cop trajectory
 copTrajectory = planDiscreteCOPToeOff(leftFootPoseInitial, rightFootPoseInitial, ...
@@ -77,8 +80,8 @@ vrpTrajectory = planDiscreteVRPTrajectory(cmpTrajectory, omegaTrajectory, ...
 % plan dcm trajectory
 [dcmTrajectory, dcmDotTrajectory, vrpTrajectory] = ...
     planDiscreteDCMandCMP(copTrajectory, leftFootPoseInitial, ...
-    rightFootPoseInitial, stepPlan, omegaTrajectory, omegaDotTrajectory, ...
-    dcmInitial, dcmDotInitial, timeVector, Q, R, F, P, N);
+    rightFootPoseInitial, footstepPlan, omegaTrajectory, omegaDotTrajectory, ...
+    dcmInitial, dcmDotInitial, timeVector, Q, R, F, P, C, N);
 
 % plan com trajectory
 [comTrajectory, comDotTrajectory] = planDiscreteCoMGivenDCM(dcmTrajectory, ...
