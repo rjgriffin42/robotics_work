@@ -43,12 +43,6 @@ function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory] = ...
     dcmDotTrajectory(i, :) = k1 / 2 + k2 / 2;
     dcmTrajectory(i, :) = dcmTrajectory(i+1, :) + dt * dcmDotTrajectory(i, :);
   end
-  dcmAltTrajectory = dcmTrajectory;
-  dcmDotAltTrajectory = dcmDotTrajectory;
-  vrpAltTrajectory = vrpTrajectory;
-  dcmOriginalTrajectory = dcmTrajectory;
-  dcmDotOriginalTrajectory = dcmDotTrajectory;
-  vrpOriginalTrajectory = vrpTrajectory;
 
   % initialize state matrices
   timeVector = timeVector';
@@ -126,38 +120,14 @@ function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory] = ...
 
   knot_x = PhiX0_filtered*xInitial(:,1:2) + PhiXu_filtered*U_alt(1:N,1:2);
 
-  % compute dcm and dcmdot trajectories using old method
+  % compute dcm and dcmdot trajectories using new method
   for i = 1:2
-    X = PhiXu*U(:,i) + PhiX0*xInitial(:, i);
-    Y = PhiYu*U(:,i) + PhiY0*xInitial(:, i);
+    X = PhiXu*U_alt(1:N,i) + PhiX0*xInitial(:, i);
+    Y = PhiYu*U_alt(1:N,i) + PhiY0*xInitial(:, i);
     for j = 1:N
       dcmTrajectory(j, i) = X(2*j-1);
       dcmDotTrajectory(j, i) = X(2*j);
       vrpTrajectory(j, i) = Y(j);
     end
   end
-
-  % compute dcm and dcmdot trajectories using new method
-  for i = 1:2
-    X = PhiXu*U_alt(1:N,i) + PhiX0*xInitial(:, i);
-    Y = PhiYu*U_alt(1:N,i) + PhiY0*xInitial(:, i);
-    for j = 1:N
-      dcmAltTrajectory(j, i) = X(2*j-1);
-      dcmDotAltTrajectory(j, i) = X(2*j);
-      vrpAltTrajectory(j, i) = Y(j);
-    end
-  end
-  figure;
-  subplot(2,1,1)
-  plot(timeVector, dcmTrajectory(:,1), 'b', timeVector, vrpTrajectory(:,1), 'r',...
-       timeVector, dcmAltTrajectory(:,1), 'b--', ...
-       timeVector, vrpAltTrajectory(:,1), 'r--', ...
-       timeVector, dcmOriginalTrajectory(:,1), 'b:', ...
-       timeVector, vrpOriginalTrajectory(:,1), 'r:')
-  subplot(2,1,2)
-  plot(timeVector, dcmTrajectory(:,2), 'b', timeVector, vrpTrajectory(:,2), 'r',...
-       timeVector, dcmAltTrajectory(:,2), 'b--', ...
-       timeVector, vrpAltTrajectory(:,2), 'r--', ...
-       timeVector, dcmOriginalTrajectory(:,2), 'b:', ...
-       timeVector, vrpOriginalTrajectory(:,2), 'r:')
 end
