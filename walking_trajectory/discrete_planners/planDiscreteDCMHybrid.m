@@ -1,3 +1,9 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Based off of the work presented in
+%    Michael A Hopkins, Dennis Hong, and Alex Leonessa, "Humanoid Locomotion on
+%      Uneven Terrain Using the Time-Varying Divergent Component of Motion."
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory] = ...
     planDCMHybrid(cmpTrajectory, leftFootPose, rightFootPose, stepPlan, ...
     omegaTrajectory, omegaDotTrajectory, dcmInitial, dcmDotInitial, timeVector,...
