@@ -55,4 +55,11 @@ footstepPlan = computeFootstepPlan(stepPlan, doubleSupportRatio, plannerDT);
 % plan com trajectory
 %[comTrajectory, comDotTrajectory] = planDiscreteCoMGivenDCM(dcmTrajectory, ...
 %    omegaTrajectory, comInitial, timeVector);
+
+figure;
+subplot(3,1,1)
+plot(timeVector, dcmTrajectory(:,1), timeVector, vrpTrajectory(:,1))
+subplot(3,1,2)
+plot(timeVector, dcmTrajectory(:,2), timeVector, vrpTrajectory(:,2))
+subplot(3,1,3)
 plot(dcmTrajectory(:,1), dcmTrajectory(:,2), vrpTrajectory(:,1), vrpTrajectory(:,2))

@@ -52,20 +52,13 @@ function [dcmTrajectory, vrpTrajectory] = planCDSClosedFormDCM(footstepPlan,...
     dcmDotEoDS{i} = 1 / omega0 * (dcmEoDS{i} - vrpKnots{i});
   end
 
-  for i = 1:planLength
-    disp(i)
-    disp(dcmIniDS{i});
-    disp(dcmDotIniDS{i});
-    disp(dcmEoDS{i});
-    disp(dcmDotEoDS{i});
-  end
-
   % compute whole DCM Trajectory
   stepIndex = 1;
   time = doubleSupportDuration{stepIndex};
   baseTime = 0;
   inDoubleSupport = true;
 
+%{
   index = 0;
   for i = 1:planLength
     t_ds = 0:plannerDT:doubleSupportDuration{i};
@@ -85,17 +78,18 @@ function [dcmTrajectory, vrpTrajectory] = planCDSClosedFormDCM(footstepPlan,...
     end
     index = index + length(t_ss);
   end
+  %}
 
-  %{
+%{
   for i = 1:length(timeVector)
     t = timeVector(i);
 
     if inDoubleSupport == true
-      cubic_spline = computeCubicSplineTrajectory
-
-      %dcmTrajectory(i, 1:3) = dcmInitial{stepIndex};
-      vrpTrajectory(i, 1:3) = dcmTrajectory(i,1:3)-1/omega0*dcmDotTrajectory(i,1:3);
+      dcmTrajectory(i, 1:3) = dcmInitial{stepIndex};
+      vrpTrajectory(i, 1:3) = vrpKnots{stepIndex};
     else
+      duration = stepPlan{stepIndex}.duration;
+
       dcmTrajectory(i,1:3) = vrpKnots{stepIndex} + ...
         exp(omega0 * (t - baseTime)) * ...
         (dcmInitial{stepIndex} - vrpKnots{stepIndex});
@@ -116,4 +110,28 @@ function [dcmTrajectory, vrpTrajectory] = planCDSClosedFormDCM(footstepPlan,...
     end
   end
   %}
+
+  index = 0;
+  for i = 1:planLength
+    if index == 0;
+      t_ds = 0:plannerDT:doubleSupportDuration{i};
+    else
+      t_ds = plannerDT:plannerDT:doubleSupportDuration{i};
+    end
+
+    for j = 1:length(t_ds)
+      dcmTrajectory(index+j,1:3) = dcmInitial{i};
+      vrpTrajectory(index+j,1:3) = vrpKnots{i};
+    end
+
+    index = index + length(t_ds);
+
+    t_ss = plannerDT:plannerDT:singleSupportDuration{i};
+    for j = 1:length(t_ss)
+      dcmTrajectory(index+j, 1:3) = vrpKnots{i} + exp(omega0 * t_ss(j)) * (dcmInitial{i} - vrpKnots{i});
+      vrpTrajectory(index+j, 1:3) = vrpKnots{i};
+    end
+
+    index = index + length(t_ss);
+  end
 end
