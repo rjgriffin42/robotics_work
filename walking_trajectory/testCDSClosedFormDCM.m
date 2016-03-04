@@ -7,6 +7,7 @@ clear all;
 % define constants
 plannerDT = 0.005;
 mass = 75; % kg
+plan_alpha = 0.5;
 
 % define gait parameters
 doubleSupportRatio = 0.2; % double support ratio
@@ -50,9 +51,16 @@ footstepPlan = computeFootstepPlan(stepPlan, doubleSupportRatio, plannerDT);
 
 % plan dcm trajectory
 [dcmTrajectory, vrpTrajectory] = ...
-    planClosedFormDCM(footstepPlan, doubleSupportRatio, omegaInitial, timeVector);
+    planCDSClosedFormDCM(footstepPlan, doubleSupportRatio, plan_alpha,...
+    omegaInitial, plannerDT, timeVector);
 
 % plan com trajectory
 %[comTrajectory, comDotTrajectory] = planDiscreteCoMGivenDCM(dcmTrajectory, ...
 %    omegaTrajectory, comInitial, timeVector);
+figure;
 plot(dcmTrajectory(:,1), dcmTrajectory(:,2), vrpTrajectory(:,1), vrpTrajectory(:,2))
+figure;
+subplot(2,1,1)
+plot(timeVector, dcmTrajectory(:,1));
+subplot(2,1,2)
+plot(timeVector, dcmTrajectory(:,2));
