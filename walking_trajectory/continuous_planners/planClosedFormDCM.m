@@ -26,46 +26,27 @@ function [dcmTrajectory, vrpTrajectory] = planClosedFormDCM(footstepPlan,...
     duration{i} = stepPlan{i}.duration;
     dcmEnd{i} = dcmInitial{i+1};
 
-    doubleSupportDuration{i} = duration{i} * doubleSupportRatio;
-    singleSupportDuration{i} = duration{i} - doubleSupportDuration{i};
-
-    alpha = exp(omega0 * singleSupportDuration{i});
+    alpha = exp(omega0 * duration{i});
     
     dcmInitial{i} = (dcmEnd{i} - vrpKnots{i}) / alpha + vrpKnots{i};
   end
 
   % compute whole DCM Trajectory
   stepIndex = 1;
-  time = doubleSupportDuration{stepIndex};
+  time = stepPlan{stepIndex}.duration;
   baseTime = 0;
-  inDoubleSupport = true;
-
   for i = 1:length(timeVector)
     t = timeVector(i);
 
-    if inDoubleSupport == true
-      dcmTrajectory(i, 1:3) = dcmInitial{stepIndex};
-      vrpTrajectory(i, 1:3) = vrpKnots{stepIndex};
-    else
-      duration = stepPlan{stepIndex}.duration;
-
-      dcmTrajectory(i,1:3) = vrpKnots{stepIndex} + ...
-        exp(omega0 * (t - baseTime)) * ...
-        (dcmInitial{stepIndex} - vrpKnots{stepIndex});
-      vrpTrajectory(i,1:3)=vrpKnots{stepIndex};
-    end
+    dcmTrajectory(i,1:3) = vrpKnots{stepIndex} + ...
+      exp(omega0 * (t - baseTime)) * ...
+      (dcmInitial{stepIndex} - vrpKnots{stepIndex});
+    vrpTrajectory(i,1:3) = vrpKnots{stepIndex};
 
     if t > time
-      if inDoubleSupport == true
-        time = time + singleSupportDuration{stepIndex};
-        baseTime = baseTime + doubleSupportDuration{stepIndex};
-        inDoubleSupport = false;
-      else
-        time = time + doubleSupportDuration{stepIndex};
-        baseTime = baseTime + singleSupportDuration{stepIndex};
-        inDoubleSupport = true;
-        stepIndex = stepIndex + 1;
-      end
+      time = time + stepPlan{stepIndex}.duration;
+      baseTime = baseTime + stepPlan{stepIndex}.duration;
+      stepIndex = stepIndex + 1;
     end
   end
 end

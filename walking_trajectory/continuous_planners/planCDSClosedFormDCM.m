@@ -7,7 +7,7 @@
 %      Intelligent Robots and Systems. 2014.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [dcmTrajectory, vrpTrajectory] = planCDSClosedFormDCM(footstepPlan,...
+function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory] = planCDSClosedFormDCM(footstepPlan,...
     doubleSupportRatio, t_alpha, omega0, plannerDT, timeVector)
 
   stepPlan = footstepPlan.stepPlan;
@@ -21,7 +21,7 @@ function [dcmTrajectory, vrpTrajectory] = planCDSClosedFormDCM(footstepPlan,...
   % add in first one for the initial foot position
   dcmInitial{planLength+1} = vrpKnots{planLength+1};
 
-  %compute knot points for DCM trajectory single support
+  % compute knot points for DCM trajectory single support
   for i = planLength:-1:1
     duration{i} = stepPlan{i}.duration;
     dcmEnd{i} = dcmInitial{i+1};
@@ -29,7 +29,7 @@ function [dcmTrajectory, vrpTrajectory] = planCDSClosedFormDCM(footstepPlan,...
     doubleSupportDuration{i} = duration{i} * doubleSupportRatio;
     singleSupportDuration{i} = duration{i} - doubleSupportDuration{i};
 
-    alpha = exp(omega0 * singleSupportDuration{i});
+    alpha = exp(omega0 * duration{i});
     
     dcmInitial{i} = (dcmEnd{i} - vrpKnots{i}) / alpha + vrpKnots{i};
   end
@@ -43,95 +43,63 @@ function [dcmTrajectory, vrpTrajectory] = planCDSClosedFormDCM(footstepPlan,...
   dcmDotEoDS{1} = 1 / omega0 * (dcmEoDS{1} - vrpKnots{1});
 
   for i = 2:planLength
-    tDeltaIni{i} = -t_alpha * doubleSupportDuration{i};
+    tDeltaIni{i} = t_alpha * doubleSupportDuration{i};
     tDeltaEnd{i} = (1 - t_alpha) * doubleSupportDuration{i};
 
-    dcmIniDS{i} = vrpKnots{i-1}+exp(omega0*tDeltaIni{i})*(dcmInitial{i}-vrpKnots{i-1});
-    dcmEoDS{i} = vrpKnots{i}+exp(omega0*tDeltaEnd{i})*(dcmInitial{i}-vrpKnots{i});
-    dcmDotIniDS{i} = 1 / omega0 * (dcmIniDS{i} - vrpKnots{i-1});
-    dcmDotEoDS{i} = 1 / omega0 * (dcmEoDS{i} - vrpKnots{i});
+    dcmIniDS{i} = vrpKnots{i-1} + exp(-omega0 * tDeltaIni{i}) * (dcmInitial{i} - vrpKnots{i-1});
+    dcmEoDS{i} = vrpKnots{i} + exp(omega0 * tDeltaEnd{i}) * (dcmInitial{i} - vrpKnots{i});
+
+    dcmDotIniDS{i} = omega0 * (dcmIniDS{i} - vrpKnots{i-1});
+    dcmDotEoDS{i} = omega0 * (dcmEoDS{i} - vrpKnots{i});
   end
+  tDeltaIni{planLength+1} = t_alpha * doubleSupportDuration{1};
+  tDeltaEnd{planLength+1} = 0;
+
+  dcmIniDS{planLength+1} = vrpKnots{planLength} + ...
+      exp(-omega0 * tDeltaIni{planLength+1}) * (dcmInitial{planLength+1} - vrpKnots{planLength});
+  dcmEoDS{planLength+1} = vrpKnots{planLength+1};
+
+  dcmDotIniDS{planLength+1} = omega0 * (dcmIniDS{planLength+1} - vrpKnots{planLength});
+  dcmDotEoDS{planLength+1} = [0 0 0];
 
   % compute whole DCM Trajectory
-  stepIndex = 1;
-  time = doubleSupportDuration{stepIndex};
-  baseTime = 0;
-  inDoubleSupport = true;
-
-%{
   index = 0;
-  for i = 1:planLength
-    t_ds = 0:plannerDT:doubleSupportDuration{i};
-    disp(doubleSupportDuration{i});
-    disp(i)
-
+  for stepIndex = 1:planLength
+    if stepIndex == 1;
+      t_ds = 0:plannerDT:tDeltaEnd{1};
+      %t_ds = 0:plannerDT:doubleSupportDuration{stepIndex};
+    else
+      t_ds = plannerDT:plannerDT:doubleSupportDuration{stepIndex};
+    end
     for j = 1:3
-      p = computeCubicSplineTrajectory([dcmIniDS{i}(j) dcmDotIniDS{i}(j)],...
-                                       [dcmEoDS{i}(j) dcmDotEoDS{i}(j)], t_ds);
-      dcmTrajectory(index+1:(length(t_ds)+index), j) = p(:, 1);
-    end
-    index = index + length(t_ds);
-
-    t_ss = tDeltaEnd{i}:plannerDT:(singleSupportDuration{i}+tDeltaIni{i+1});
-    for j = 1:length(t_ss)
-      dcmTrajectory(index+j,1:3) = vrpKnots{i} + exp(omega0 * t_ss(j)) - vrpKnots{i};
-    end
-    index = index + length(t_ss);
-  end
-  %}
-
-%{
-  for i = 1:length(timeVector)
-    t = timeVector(i);
-
-    if inDoubleSupport == true
-      dcmTrajectory(i, 1:3) = dcmInitial{stepIndex};
-      vrpTrajectory(i, 1:3) = vrpKnots{stepIndex};
-    else
-      duration = stepPlan{stepIndex}.duration;
-
-      dcmTrajectory(i,1:3) = vrpKnots{stepIndex} + ...
-        exp(omega0 * (t - baseTime)) * ...
-        (dcmInitial{stepIndex} - vrpKnots{stepIndex});
-      vrpTrajectory(i,1:3)=vrpKnots{stepIndex};
-    end
-
-    if t > time
-      if inDoubleSupport == true
-        time = time + singleSupportDuration{stepIndex};
-        baseTime = baseTime + doubleSupportDuration{stepIndex};
-        inDoubleSupport = false;
-      else
-        time = time + doubleSupportDuration{stepIndex};
-        baseTime = baseTime + singleSupportDuration{stepIndex};
-        inDoubleSupport = true;
-        stepIndex = stepIndex + 1;
-      end
-    end
-  end
-  %}
-
-  index = 0;
-  for i = 1:planLength
-    if index == 0;
-      t_ds = 0:plannerDT:doubleSupportDuration{i};
-    else
-      t_ds = plannerDT:plannerDT:doubleSupportDuration{i};
-    end
-
-    for j = 1:length(t_ds)
-      dcmTrajectory(index+j,1:3) = dcmInitial{i};
-      vrpTrajectory(index+j,1:3) = vrpKnots{i};
+      tempVector = computeCubicSplineTrajectory([dcmIniDS{stepIndex}(j) dcmDotIniDS{stepIndex}(j)], ...
+        [dcmEoDS{stepIndex}(j) dcmDotEoDS{stepIndex}(j)], t_ds);
+      startIndex = index + 1;
+      endIndex = index + length(t_ds);
+      dcmTrajectory(startIndex:endIndex,j) = tempVector(:,1);
+      dcmDotTrajectory(startIndex:endIndex,j) = tempVector(:,2);
     end
 
     index = index + length(t_ds);
 
-    t_ss = plannerDT:plannerDT:singleSupportDuration{i};
+    t_ss = plannerDT:plannerDT:singleSupportDuration{stepIndex};
     for j = 1:length(t_ss)
-      dcmTrajectory(index+j, 1:3) = vrpKnots{i} + exp(omega0 * t_ss(j)) * (dcmInitial{i} - vrpKnots{i});
-      vrpTrajectory(index+j, 1:3) = vrpKnots{i};
+      dcmTrajectory(index+j, 1:3) = vrpKnots{stepIndex} + exp(omega0 * t_ss(j)) * (dcmEoDS{stepIndex} - vrpKnots{stepIndex});
+      dcmDotTrajectory(index+j, 1:3) = omega0 * (dcmTrajectory(index+j, 1:3) - vrpKnots{stepIndex});
     end
 
     index = index + length(t_ss);
   end
+
+  t_ds = plannerDT:plannerDT:tDeltaIni{planLength+1};
+  for j = 1:3
+    tempVector = computeCubicSplineTrajectory([dcmIniDS{planLength+1}(j) dcmDotIniDS{planLength+1}(j)], ...
+      [dcmEoDS{planLength+1}(j) dcmDotEoDS{planLength+1}(j)], t_ds);
+    startIndex = index + 1;
+    endIndex = index + length(t_ds);
+    dcmTrajectory(startIndex:endIndex,j) = tempVector(:,1);
+    dcmDotTrajectory(startIndex:endIndex,j) = tempVector(:,2);
+  end
+
+  vrpTrajectory = dcmTrajectory - 1 / omega0 * dcmDotTrajectory;
 end
