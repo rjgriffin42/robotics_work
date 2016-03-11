@@ -7,8 +7,7 @@
 %      Intelligent Robots and Systems. 2014.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [dcmTrajectory, vrpTrajectory] = planClosedFormDCM(footstepPlan,...
-    omega0, plannerDT)
+function [dcmTrajectory, vrpTrajectory] = planClosedFormDCM(footstepPlan, dcm0, omega0, plannerDT)
 
   stepPlan = footstepPlan.stepPlan;
   alphaPlan = 0.5;
@@ -17,9 +16,11 @@ function [dcmTrajectory, vrpTrajectory] = planClosedFormDCM(footstepPlan,...
   for i = 1:planLength
     vrpKnots{i+1} = stepPlan{i}.pose(1:3);
   end
-  vrpKnots{1} = [0 0.1 0];
+  vrpKnots{1} = dcm0;
   % add in first one for the initial foot position
   dcmInitial{planLength+1} = vrpKnots{planLength+1};
+
+  dcmFinal = 0.5 * (stepPlan{planLength}.pose(1:3) + stepPlan{planLength-1}.pose(1:3));
 
   %compute knot points for DCM trajectory single support
   for i = planLength:-1:1
