@@ -17,10 +17,10 @@ function [dcmTrajectory, vrpTrajectory] = planClosedFormDCM(footstepPlan, dcm0, 
     vrpKnots{i+1} = stepPlan{i}.pose(1:3);
   end
   vrpKnots{1} = dcm0;
-  % add in first one for the initial foot position
-  dcmInitial{planLength+1} = vrpKnots{planLength+1};
 
+  % add in first one for the initial foot position
   dcmFinal = 0.5 * (stepPlan{planLength}.pose(1:3) + stepPlan{planLength-1}.pose(1:3));
+  dcmInitial{planLength+1} = dcmFinal;
 
   %compute knot points for DCM trajectory single support
   for i = planLength:-1:1
@@ -43,6 +43,7 @@ function [dcmTrajectory, vrpTrajectory] = planClosedFormDCM(footstepPlan, dcm0, 
 
     for j = 1:length(t)
       dcmTrajectory(baseIndex+j,1:3) = vrpKnots{stepIndex} + exp(omega0 * t(j)) * (dcmInitial{stepIndex} - vrpKnots{stepIndex});
+      dcmDotTrajectory(baseIndex+j, 1:3) = omega0 * (dcmTrajectory(baseIndex+j, 1:3) - vrpKnots{stepIndex});
       vrpTrajectory(baseIndex+j,1:3) = vrpKnots{stepIndex};
     end
     baseIndex = baseIndex + length(t);
