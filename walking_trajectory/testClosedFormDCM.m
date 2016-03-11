@@ -10,6 +10,7 @@ mass = 75; % kg
 
 % define gait parameters
 doubleSupportRatio = 0.2; % double support ratio
+initialDoubleSupportDuration = 0.5;
 comHeightNominal = 0.85; % nominal com height;
 toeOffRatio = 0.7;
 heelStrikeRatio = 0.0;
@@ -34,13 +35,10 @@ dcmDotInitial = zeros(1,3);
 % define step plan
 stepPlan = forwardStepPlan();
 
-% compute discrete time vector
-timeVector = computeStepPlanTimeVector(stepPlan, plannerDT);
-
 % compute inertial step plan
-stepPlan = transformStepPlanToInertialFrame(leftFootPoseInitial, ...
-              rightFootPoseInitial, stepPlan);
-footstepPlan = computeFootstepPlan(stepPlan, doubleSupportRatio, plannerDT);
+stepPlan = transformStepPlanToInertialFrame(leftFootPoseInitial, rightFootPoseInitial, stepPlan);
+footstepPlan = computeFootstepPlan(stepPlan, doubleSupportRatio, plannerDT, initialDoubleSupportDuration);
+timeVector = footstepPlan.timeVector;
 
 % plan com height trajectory
 [comHeightTrajectory, comDotHeightTrajectory, comDotDotHeightTrajectory] = ...
@@ -49,8 +47,9 @@ footstepPlan = computeFootstepPlan(stepPlan, doubleSupportRatio, plannerDT);
     comInitial, comDotInitial, comDotDotInitial, timeVector);
 
 % plan dcm trajectory
+
 [dcmTrajectory, vrpTrajectory] = ...
-    planClosedFormDCM(footstepPlan, doubleSupportRatio, omegaInitial, timeVector);
+    planClosedFormDCM(footstepPlan, omegaInitial, plannerDT);
 
 % plan com trajectory
 %[comTrajectory, comDotTrajectory] = planDiscreteCoMGivenDCM(dcmTrajectory, ...

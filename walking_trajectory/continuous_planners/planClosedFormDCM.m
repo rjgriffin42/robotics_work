@@ -8,7 +8,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [dcmTrajectory, vrpTrajectory] = planClosedFormDCM(footstepPlan,...
-    doubleSupportRatio, omega0, timeVector)
+    omega0, plannerDT)
 
   stepPlan = footstepPlan.stepPlan;
   alphaPlan = 0.5;
@@ -32,21 +32,18 @@ function [dcmTrajectory, vrpTrajectory] = planClosedFormDCM(footstepPlan,...
   end
 
   % compute whole DCM Trajectory
-  stepIndex = 1;
-  time = stepPlan{stepIndex}.duration;
-  baseTime = 0;
-  for i = 1:length(timeVector)
-    t = timeVector(i);
-
-    dcmTrajectory(i,1:3) = vrpKnots{stepIndex} + ...
-      exp(omega0 * (t - baseTime)) * ...
-      (dcmInitial{stepIndex} - vrpKnots{stepIndex});
-    vrpTrajectory(i,1:3) = vrpKnots{stepIndex};
-
-    if t > time
-      time = time + stepPlan{stepIndex}.duration;
-      baseTime = baseTime + stepPlan{stepIndex}.duration;
-      stepIndex = stepIndex + 1;
+  baseIndex = 0;
+  for stepIndex = 1:planLength
+    if stepIndex == 1
+      t = 0:plannerDT:stepPlan{stepIndex}.duration;
+    else
+      t = plannerDT:plannerDT:stepPlan{stepIndex}.duration;
     end
+
+    for j = 1:length(t)
+      dcmTrajectory(baseIndex+j,1:3) = vrpKnots{stepIndex} + exp(omega0 * t(j)) * (dcmInitial{stepIndex} - vrpKnots{stepIndex});
+      vrpTrajectory(baseIndex+j,1:3) = vrpKnots{stepIndex};
+    end
+    baseIndex = baseIndex + length(t);
   end
 end
