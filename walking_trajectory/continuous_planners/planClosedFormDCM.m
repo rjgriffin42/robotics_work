@@ -1,10 +1,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Based off of the work presented in
-%    Johannes Englsberger, Twan Koolen, Sylvain Bertrand, Jerry Pratt, Christian
-%      Ott, and Alin Albu-Shcaffer, "Trajectory generation for continuous leg 
-%      forces during double support and heel-to-toe shift based on divergent
-%      component of motion." 2014 IEEE/RSJ International Conference on 
-%      Intelligent Robots and Systems. 2014.
+%    Johannes Englsberger, Christian Ott, and Alin Albu-Shcaffer, "Three-dimensional
+%      bipedal walking control using Divergent Component of Motion." 2014 IEEE/RSJ
+%      International Conference on Intelligent Robots and Systems. 2014.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [dcmTrajectory, vrpTrajectory] = planClosedFormDCM(footstepPlan, dcm0, omega0, plannerDT)
