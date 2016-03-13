@@ -47,7 +47,6 @@ timeVector = footstepPlan.timeVector;
     comInitial, comDotInitial, comDotDotInitial, timeVector);
 
 % plan dcm trajectory
-
 [dcmTrajectory, vrpTrajectory] = ...
     planClosedFormDCM(footstepPlan, dcmInitial, omegaInitial, plannerDT);
 

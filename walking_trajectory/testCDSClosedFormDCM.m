@@ -11,6 +11,7 @@ plan_alpha = 0.5;
 
 % define gait parameters
 doubleSupportRatio = 0.2; % double support ratio
+initialDoubleSupportDuration = 0.5;
 comHeightNominal = 0.85; % nominal com height;
 toeOffRatio = 0.7;
 heelStrikeRatio = 0.0;
@@ -35,13 +36,11 @@ dcmDotInitial = zeros(1,3);
 % define step plan
 stepPlan = forwardStepPlan();
 
-% compute discrete time vector
-timeVector = computeStepPlanTimeVector(stepPlan, plannerDT);
-
 % compute inertial step plan
 stepPlan = transformStepPlanToInertialFrame(leftFootPoseInitial, ...
               rightFootPoseInitial, stepPlan);
-footstepPlan = computeFootstepPlan(stepPlan, doubleSupportRatio, plannerDT);
+footstepPlan = computeFootstepPlan(stepPlan, doubleSupportRatio, plannerDT, initialDoubleSupportDuration);
+timeVector = footstepPlan.timeVector;
 
 % plan com height trajectory
 [comHeightTrajectory, comDotHeightTrajectory, comDotDotHeightTrajectory] = ...
@@ -52,12 +51,11 @@ footstepPlan = computeFootstepPlan(stepPlan, doubleSupportRatio, plannerDT);
 % plan continuous double support dcm trajectory
 [dcmTrajectory, dcmDotTrajectory, vrpTrajectory] = ...
     planCDSClosedFormDCM(footstepPlan, doubleSupportRatio, plan_alpha,...
-    omegaInitial, plannerDT, timeVector);
+    dcmInitial, omegaInitial, plannerDT, initialDoubleSupportDuration);
 
 % plan normal dcm trajectory
 [dcmTrajectory_alt, vrpTrajectory_alt] = ...
-    planClosedFormDCM(footstepPlan, doubleSupportRatio, ...
-    omegaInitial, timeVector);
+    planClosedFormDCM(footstepPlan, dcmInitial, omegaInitial, plannerDT);
 
 % plan com trajectory
 %[comTrajectory, comDotTrajectory] = planDiscreteCoMGivenDCM(dcmTrajectory, ...
@@ -65,8 +63,8 @@ footstepPlan = computeFootstepPlan(stepPlan, doubleSupportRatio, plannerDT);
 
 figure;
 subplot(3,1,1)
-plot(timeVector, dcmTrajectory(:,1), timeVector, vrpTrajectory(:,1));
+plot(timeVector, dcmTrajectory(:,1), timeVector, dcmTrajectory_alt(:,1), timeVector, vrpTrajectory(:,1));
 subplot(3,1,2)
-plot(timeVector, dcmTrajectory(:,2), timeVector, vrpTrajectory(:,2));
+plot(timeVector, dcmTrajectory(:,2), timeVector, dcmTrajectory_alt(:,2), timeVector, vrpTrajectory(:,2));
 subplot(3,1,3)
 plot(dcmTrajectory(:,1), dcmTrajectory(:,2), vrpTrajectory(:,1), vrpTrajectory(:,2))
