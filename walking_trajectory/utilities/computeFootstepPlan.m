@@ -8,11 +8,16 @@ function footstepPlan = computeFootstepPlan(stepPlan, doubleSupportRatio, dt, in
   heelStrikeTime(1) = (1 - doubleSupportRatio) * stepPlan{1}.duration + initialDoubleSupportDuration;
   stepPlan{1}.duration = initialDoubleSupportDuration + (1 - doubleSupportRatio) * stepPlan{1}.duration;
   time = heelStrikeTime(1);
+  doubleSupportDuration(1) = initialDoubleSupportDuration;
+  singleSupportDuration(1) = (1 - doubleSupportRatio) * stepPlan{1}.duration;
 
   for i = 2:planLength
       doubleSupportTime(i) = time;
       singleSupportTime(i) = time + doubleSupportRatio * stepPlan{i}.duration;
       heelStrikeTime(i) = time + stepPlan{i}.duration;
+
+      doubleSupportDuration(i) = doubleSupportRatio * stepPlan{i}.duration;
+      singleSupportDuration(i) = stepPlan{i}.duration - doubleSupportDuration(i);
       
       time = time + stepPlan{i}.duration;
   end
@@ -43,4 +48,6 @@ function footstepPlan = computeFootstepPlan(stepPlan, doubleSupportRatio, dt, in
   footstepPlan.doubleSupportIndices = doubleSupportIndices;
   footstepPlan.singleSupportIndices = singleSupportIndices;
   footstepPlan.heelStrikeIndices = heelStrikeIndices;
+  footstepPlan.doubleSupportDuration = doubleSupportDuration;
+  footstepPlan.singleSupportDuration = singleSupportDuration;
 end
