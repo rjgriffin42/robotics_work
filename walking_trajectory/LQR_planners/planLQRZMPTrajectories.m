@@ -8,6 +8,7 @@
 
 function [S1] = planLQRZMPTrajectories(footstepPlan, nominalCoMHeight, zmp0, Q, R)
   
+  plannerDT = 0.005;
   stepPlan = footstepPlan.stepPlan;
   numberOfSteps = length(stepPlan);
 
@@ -19,17 +20,39 @@ function [S1] = planLQRZMPTrajectories(footstepPlan, nominalCoMHeight, zmp0, Q, 
     zmpFinal{stepIndex} = stepPlan{stepIndex}.pose(1:2);
   end
 
+  timeKnots{1} = 0;
   % compute spline coefficients
   for stepIndex = 1:numberOfSteps
-  	xInitial = [zmpInitial{stepIndex}' [0; 0]];
-    xFinal = [zmpFinal{stepIndex}' [0; 0]];
+  	xKnots{1} = [zmpInitial{stepIndex}' [0; 0]];
+    xKnots{2} = [zmpFinal{stepIndex}' [0; 0]];
+    timeKnots{2*stepIndex} = footstepPlan.doubleSupportDuration(stepIndex)...
+        + timeKnots{2*stepIndex-1};
+    timeKnots{2*stepIndex+1} = footstepPlan.singleSupportDuration(stepIndex)...
+        + timeKnots{2*stepIndex};
 
-  	c{2*stepIndex - 1} = computeContinuousCubicCoefficients(xInitial, xFinal, ...
+  	coefficients_temp = computeContinuousCubicCoefficients(xKnots, ...
   		footstepPlan.doubleSupportDuration(stepIndex));
+    coefficients{2*stepIndex - 1} = coefficients_temp{1};
 
-  	c{2*stepIndex - 1} = computeContinuousCubicCoefficients(xFinal, xFinal, ...
+  	coefficients_temp = computeContinuousCubicCoefficients(xKnots, ...
   		footstepPlan.singleSupportDuration(stepIndex));
+    coefficients{2*stepIndex} = coefficients_temp{1};
   end
+  
+  % compute cubic spline ZMP trajectory
+  lineIndex = 0;
+  for segment = 1:length(coefficients)
+      t = timeKnots{segment}:plannerDT:(timeKnots{segment+1} - plannerDT);
+      for col = 1:length(t)
+          zmp(:,col) = [0;0];
+          for index = 1:4
+              zmp(:,col) = zmp(:,col) + coefficients{segment}(:,index) * ...
+                  (t(col) - timeKnots{segment})^index;
+          end
+      end
+  end
+  zmp_bar(1,:) = zmp(1,:) - zmpFinal{end}(1);
+  zmp_bar(2,:) = zmp(2,:) - zmpFinal{end}(2);
 
   gravity = -9.81;
 
@@ -45,7 +68,7 @@ function [S1] = planLQRZMPTrajectories(footstepPlan, nominalCoMHeight, zmp0, Q, 
   %q2 = -2 * C' * Q * ybar;
   %q3 = Q * ybar' * ybar;
   R1 = R + Q * D' * D;
-  %r2 = -2 * D * Q * ybar;
+  r2 = -2 * D * Q * zmp_bar;
   N = C' * Q * D;
 
   % find the solution to the algebraic ricatti equation
@@ -58,7 +81,10 @@ function [S1] = planLQRZMPTrajectories(footstepPlan, nominalCoMHeight, zmp0, Q, 
   NB = N' + B' * S1;
   B2 = 2 * (C' - NB' * R1^-1 * D) * Q;
 
-  s2 = computeLQRTimeVaryingLinearTerm(S11, S12, S22, B2, Q, D, R1, c);
+  [s2, k2] = computeLQRTimeVaryingLinearTerm(S11, S12, S22, B2, Q, B, D, R1,...
+      coefficients, timeKnots, plannerDT);
+  
+  rs = 1/2 * (r2 + B' * s2);
 
   zmpTrajectory = 0;
 end

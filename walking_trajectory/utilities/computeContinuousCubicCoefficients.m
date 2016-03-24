@@ -66,6 +66,4 @@ function coefficients = computeContinuousCubicCoefficients(xKnots, durations, xD
    	    rowIndex = rowIndex + 4;
      end
    end
-
-
 end
