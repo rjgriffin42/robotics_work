@@ -6,7 +6,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-function [S1] = planLQRZMPTrajectories(footstepPlan, nominalCoMHeight, zmp0, Q, R)
+function [zmpTrajectory, zmpDefined] = planLQRZMPTrajectories(footstepPlan, nominalCoMHeight, zmp0, Q, R)
   
   plannerDT = 0.005;
   stepPlan = footstepPlan.stepPlan;
@@ -44,15 +44,18 @@ function [S1] = planLQRZMPTrajectories(footstepPlan, nominalCoMHeight, zmp0, Q, 
   for segment = 1:length(coefficients)
       t = timeKnots{segment}:plannerDT:(timeKnots{segment+1} - plannerDT);
       for col = 1:length(t)
-          zmp(:,col) = [0;0];
+          timeVector(col+lineIndex) = t(col);
+          zmp(:,col+lineIndex) = [0;0];
           for index = 1:4
-              zmp(:,col) = zmp(:,col) + coefficients{segment}(:,index) * ...
-                  (t(col) - timeKnots{segment})^index;
+              zmp(:,col+lineIndex) = zmp(:,col+lineIndex) + ...
+                  coefficients{segment}(:,index) * (t(col) - timeKnots{segment})^(index-1);
           end
       end
+      lineIndex = lineIndex + length(t);
   end
   zmp_bar(1,:) = zmp(1,:) - zmpFinal{end}(1);
   zmp_bar(2,:) = zmp(2,:) - zmpFinal{end}(2);
+  zmpDefined = zmp;
 
   gravity = -9.81;
 
@@ -81,10 +84,13 @@ function [S1] = planLQRZMPTrajectories(footstepPlan, nominalCoMHeight, zmp0, Q, 
   NB = N' + B' * S1;
   B2 = 2 * (C' - NB' * R1^-1 * D) * Q;
 
-  [s2, k2] = computeLQRTimeVaryingLinearTerm(S11, S12, S22, B2, Q, B, D, R1,...
+  [s2, k2, alpha] = computeLQRTimeVaryingLinearTerm(S11, S12, S22, B2, Q, B, D, R1,...
       coefficients, timeKnots, plannerDT);
   
   rs = 1/2 * (r2 + B' * s2);
-
-  zmpTrajectory = 0;
+  
+  xbar = - inv(2*S1) * s2;
+  u = -inv(R1) * (NB * xbar + rs);
+  x = xbar + [zmp_bar; zeros(2, size(zmp_bar, 2))];
+  zmpTrajectory = C * x + D * u;
 end

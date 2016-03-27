@@ -42,4 +42,8 @@ stepPlan = transformStepPlanToInertialFrame(leftFootPoseInitial, ...
 footstepPlan = computeFootstepPlan(stepPlan, doubleSupportRatio, plannerDT, initialDoubleSupportDuration);
 timeVector = footstepPlan.timeVector;
 
-zmpTrajectory = planLQRZMPTrajectories(footstepPlan, comHeightNominal, zmpInitial, Q, R);
+[zmpTrajectory, zmpDefined] = ...
+    planLQRZMPTrajectories(footstepPlan, comHeightNominal, zmpInitial, Q, R);
+
+%splot(zmpTrajectory(1,:), zmpTrajectory(2,:), zmpDefined(1,:), zmpDefined(2,:))
+plot(zmpDefined(1,:), zmpDefined(2,:))

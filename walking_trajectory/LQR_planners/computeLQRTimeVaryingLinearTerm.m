@@ -1,4 +1,4 @@
-function [s2, k2] = computeLQRTimeVaryingLinearTerm(S11, S12, S13, B2, Q, B, ...
+function [s2, k2, alpha] = computeLQRTimeVaryingLinearTerm(S11, S12, S13, B2, Q, B, ...
     D, R1, coefficients, timeKnots, plannerDT)
 
   R1inv = inv(R1);
@@ -36,6 +36,7 @@ function [s2, k2] = computeLQRTimeVaryingLinearTerm(S11, S12, S13, B2, Q, B, ...
   end
   
   % compute trajectory solution
+  rowIndex = 0;
   for j = 1:n
       t = timeKnots{j}:plannerDT:(timeKnots{j+1}-plannerDT);
       beta_sum = 0;
@@ -45,8 +46,9 @@ function [s2, k2] = computeLQRTimeVaryingLinearTerm(S11, S12, S13, B2, Q, B, ...
               beta_sum = beta_sum + beta{j}(:,index) * (t(i) - timeKnots{j})^(index-1);
               gamma_sum = gamma_sum + gamma{j}(:,index) * (t(i) - timeKnots{j})^(index-1);
           end
-          s2 = exp(A2 * (t(i) - timeKnots{j})) * alpha{j} + beta_sum;
+          s2(:,rowIndex+i) = exp(A2 * (t(i) - timeKnots{j})) * alpha{j} + beta_sum;
           k2 = -1/2 * R1inv * B' * exp(A2 * (t(i) - timeKnots{j})) * alpha{j} + gamma_sum;
       end
+      rowIndex = rowIndex + length(t);
   end
 end
