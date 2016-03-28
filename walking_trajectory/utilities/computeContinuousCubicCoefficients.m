@@ -5,7 +5,7 @@ function [coefficients ,b] = computeContinuousCubicCoefficients(xKnots, duration
      xDotFinal = [0; 0];
    end
 
-   numberOfKnots = length(xKnots)
+   numberOfKnots = length(xKnots);
 
    for dimension = 1:2
      rowIndex = 0;
@@ -42,7 +42,7 @@ function [coefficients ,b] = computeContinuousCubicCoefficients(xKnots, duration
 
     	      b(rowIndex+1) = xKnots{i}(dimension);
     	      b(rowIndex+2) = xKnots{i+1}(dimension);
-    	      b(rowIndex+3) = xDotFinal(dimension);
+    	      b(rowIndex+3) = xDotFinal{i+1}(dimension);
     	    else
     	      c(rowIndex+1, colIndex+1) = 1;
     	      c(rowIndex+2, colIndex+1:colIndex+4) = [1 durations(i) durations(i)^2 durations(i)^3];
@@ -58,7 +58,6 @@ function [coefficients ,b] = computeContinuousCubicCoefficients(xKnots, duration
         end
      end
      
-     size(c^-1)
      coefficients_temp = c^-1 * b';
 
      rowIndex = 0;
@@ -67,4 +66,6 @@ function [coefficients ,b] = computeContinuousCubicCoefficients(xKnots, duration
    	    rowIndex = rowIndex + 4;
      end
    end
+
+
 end
