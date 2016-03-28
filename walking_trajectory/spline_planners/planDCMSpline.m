@@ -1,7 +1,7 @@
 function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory] = ...
     planDCMSpline(cmpTrajectory, leftFootPose, rightFootPose, footstepPlan, ...
     omegaTrajectory, omegaDotTrajectory, dcmInitial, dcmDotInitial,...
-    numberOfKnots, plannerDT, Q, R, F)
+    numberOfKnots, plannerDT, Q, R, V)
 
   gravity = 9.81;
   timeVector = footstepPlan.timeVector;
@@ -78,13 +78,13 @@ function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory] = ...
   % add constraints on initial value
   CE = zeros(2, numberOfKnots);
   CE(1,1) = 1;
-  CE(2,end) = 1
+  CE(2,end) = 1;
   ce(1,:) = dcmInitial(1:2);
-  ce(2,:) = dcmTrajectory(end,1:2)
+  ce(2,:) = dcmTrajectory(end,1:2);
   
   % TODO add constraints on final value
 
-  G = Q * Phi' * Phi + R * PhiDotDot' * PhiDotDot;
+  G = Q * Phi' * Phi + R * PhiDotDot' * PhiDotDot + V * PhiDot' * PhiDot;
   g = -Q * dcmTrajectory(:,1:2)' * Phi;
 
   H = [G CE'; CE zeros(size(CE,1))];
@@ -94,6 +94,12 @@ function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory] = ...
   x = -inv(H) * h';
   knots = x(1:numberOfKnots,:);
   
-  dcmTrajectory = Phi * knots;
-  dcmDotTrajectory = PhiDot * knots;
+  dcmTrajectory(:,1:2) = Phi * knots;
+  dcmDotTrajectory(:,1:2) = PhiDot * knots;
+  
+  size(dcmTrajectory)
+  size(dcmDotTrajectory)
+  for i = 1:length(dcmTrajectory)
+      vrpTrajectory(i,:) = dcmTrajectory(i,:) - dcmDotTrajectory(i,:) / omegaTrajectory(i);
+  end
 end
