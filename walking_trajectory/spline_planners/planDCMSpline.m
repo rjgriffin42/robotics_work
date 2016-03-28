@@ -76,9 +76,11 @@ function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory] = ...
   end
  
   % add constraints on initial value
-  CE = zeros(1, numberOfKnots);
-  CE(:,1) = [1];
-  ce = dcmInitial(1:2);
+  CE = zeros(2, numberOfKnots);
+  CE(1,1) = 1;
+  CE(2,end) = 1
+  ce(1,:) = dcmInitial(1:2);
+  ce(2,:) = dcmTrajectory(end,1:2)
   
   % TODO add constraints on final value
 
@@ -86,7 +88,7 @@ function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory] = ...
   g = -Q * dcmTrajectory(:,1:2)' * Phi;
 
   H = [G CE'; CE zeros(size(CE,1))];
-  h = [g ce'];
+  h = [g -ce'];
 
   % solve problem
   x = -inv(H) * h';
