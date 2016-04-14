@@ -15,6 +15,7 @@ function [zmpTrajectory, zmpDefined] = planLQRZMPTrajectories(footstepPlan, nomi
   zmpInitial{1} = zmp0;
   zmpFinal{1} = [0 0.1];
 
+
   for stepIndex = 2:numberOfSteps
     zmpInitial{stepIndex} = stepPlan{stepIndex-1}.pose(1:2);
     zmpFinal{stepIndex} = stepPlan{stepIndex}.pose(1:2);
@@ -73,24 +74,54 @@ function [zmpTrajectory, zmpDefined] = planLQRZMPTrajectories(footstepPlan, nomi
   R1 = R + Q * D' * D;
   r2 = -2 * D * Q * zmp_bar;
   N = C' * Q * D;
+  R1inv = inv(R1);
 
   % find the solution to the algebraic ricatti equation
   S1 = care(A, B, Q1, R1, N);
   S11 = S1(1:2, 1:2);
   S12 = S1(1:2, 3:4);
   S22 = S1(3:4, 3:4);
+  
+  [K, S] = lqr(A,B,Q1,R1,N);
 
+  K = -K;
+  
   % compute linear time varying LQR term
-  NB = N' + B' * S1;
-  B2 = 2 * (C' - NB' * R1^-1 * D) * Q;
+  NB = N' + B' * S;
+  A2 = NB' * R1inv * B' - A';
+  B2 = 2 * (C' - NB' * R1inv * D) * Q;
 
-  [s2, k2, alpha] = computeLQRTimeVaryingLinearTerm(S11, S12, S22, B2, Q, B, D, R1,...
-      coefficients, timeKnots, plannerDT);
+  A2inv = inv(A2);
+  
+  n = numberOfSteps * 2;
+  k = 3;
+  
+  [s2, k2, alpha, beta] = computeLQRTimeVaryingLinearTerm(S11, S12, S22, B2, Q, B, D, R1,...
+     coefficients, timeKnots, plannerDT);
+  
+
+  
+  Ay = [A + B*K, -.5 * B * R1inv * B'; zeros(4), A2];
+  Ayinv = inv(Ay);
+  By = [B*R1inv * D * Q; B2];
+  
+  a = zeros(4, n);
+  b = zeros(4,n,k);
+  
+  for j = 1:n
+      b(:,j,k) = -Ayinv(1:4,:) * By * coefficients{j}(:,k);
+      for i = k-1:-1:1
+          b(:,j,i) = Ayinv(1:4,:) * (i*[b(:,j,i+1); beta(:,j,i+1)] - ...
+              By * coefficients{j}(:,i));
+      end
+      a(:,j) = x - b(:,j,1);
+      dt = timeKnots{j+1} - timeKnots{j};
+      x = [eye(4), zeros(4)] * expm(Ay * dt) * [a(:,j); alpha(:,j)] + ...
+          squeeze(b(:,j,:)) * (dt.^(0:k-1)');
+  end
   
   rs = 1/2 * (r2 + B' * s2);
   
-  xbar = - inv(2*S1) * s2;
-  u = -inv(R1) * (NB * xbar + rs);
-  x = xbar + [zmp_bar; zeros(2, size(zmp_bar, 2))];
+  u = -inv(R1) * (NB * x + rs);
   zmpTrajectory = C * x + D * u;
 end

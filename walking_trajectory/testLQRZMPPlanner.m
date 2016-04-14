@@ -17,7 +17,7 @@ toeOffRatio = 0.7;
 heelStrikeRatio = 0.0;
 
 % define LQR parameters
-Q = 1e1;
+Q = 1e2;
 R = 1e-1;
 
 % define initial conditions
@@ -45,5 +45,10 @@ timeVector = footstepPlan.timeVector;
 [zmpTrajectory, zmpDefined] = ...
     planLQRZMPTrajectories(footstepPlan, comHeightNominal, zmpInitial, Q, R);
 
-%splot(zmpTrajectory(1,:), zmpTrajectory(2,:), zmpDefined(1,:), zmpDefined(2,:))
+%{
+subplot(2,1,1)
+plot(zmpTrajectory(1,:), zmpTrajectory(2,:))
+subplot(2,1,2)
 plot(zmpDefined(1,:), zmpDefined(2,:))
+%}
+

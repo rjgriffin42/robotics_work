@@ -19,7 +19,7 @@ heelStrikeRatio = 0.0;
 Q = 1e-2;
 R = 1e-4;
 F = 1e6;
-numberOfKnots = 50;
+numberOfKnots = 100;
 
 % define initial conditions
 leftFootPoseInitial = [0, 0.1, 0, 0, 0, 0];
@@ -77,28 +77,50 @@ cmpTrajectory = planDiscreteCMPTrajectory(copTrajectory, tauTrajectory, ...
 vrpTrajectory = planDiscreteVRPTrajectory(cmpTrajectory, omegaTrajectory, ...
     omegaDotTrajectory, timeVector);
 
+ % compute final DCM position
+  for i = 1:length(stepPlan)
+    duration{i} = stepPlan{i}.duration;
+    if (stepPlan{i}.foot == 'l')
+      doubleSupportPoses{i} = leftFootPose;
+      singleSupportPoses{i} = rightFootPose;
+      leftFootPose = stepPlan{i}.pose;
+    else
+      doubleSupportPoses{i} = rightFootPose;
+      singleSupportPoses{i} = leftFootPose;
+      rightFootPose = stepPlan{i}.pose;
+    end
+  end
+  doubleSupportPoses{end+1} = singleSupportPoses{end};
+  singleSupportPoses{end+1} = (leftFootPose + rightFootPose) / 2;
+
 % plan dcm trajectory
-[dcmTrajectory, dcmDotTrajectory, vrpTrajectory] = ...
-    planDCMSpline(cmpTrajectory, leftFootPoseInitial, ...
+[dcmTrajectory, dcmDotTrajectory, vrpTrajectory, cmpTrajectoryNew] = ...
+    planCoPAndDCMSpline(cmpTrajectory, leftFootPoseInitial, ...
     rightFootPoseInitial, footstepPlan, omegaTrajectory, omegaDotTrajectory, ...
-    dcmInitial, dcmDotInitial, numberOfKnots, plannerDT, 1e-1, R, 1e-5);
+    dcmInitial, dcmDotInitial, numberOfKnots, plannerDT, 1e10, R, 1e3);
 
 [dcmTrajectoryOld, dcmDotTrajectoryOld, vrpTrajectory] = ...
     planDiscreteDCMHybrid(cmpTrajectory, leftFootPoseInitial, ...
     rightFootPoseInitial, stepPlan, omegaTrajectory, omegaDotTrajectory, ...
     dcmInitial, dcmDotInitial, timeVector, Q, R, F);
 
+figure;
 subplot(3,1,1)
-plot(timeVector, dcmTrajectory(:,1));
-plot(timeVector, dcmTrajectory(:,1), timeVector, dcmTrajectoryOld(:,1), '--');%, ...
-    %timeVector, dcmDotTrajectory(:,1), timeVector, dcmDotTrajectoryOld(:,1), '--')
+plot(timeVector, dcmTrajectory(:,1), timeVector, dcmTrajectoryOld(:,1), '--',...
+    timeVector, cmpTrajectoryNew(:,1), '-.', timeVector, vrpTrajectory(:,1), ':');
 subplot(3,1,2)
-plot(timeVector, dcmTrajectory(:,2));
-plot(timeVector, dcmTrajectory(:,2), timeVector, dcmTrajectoryOld(:,2), '--');%, ...
-        %timeVector, dcmDotTrajectory(:,2), timeVector, dcmDotTrajectoryOld(:,2), '--')
+plot(timeVector, dcmTrajectory(:,2), timeVector, dcmTrajectoryOld(:,2), '--',...
+    timeVector, cmpTrajectoryNew(:,2), '-.', timeVector, vrpTrajectory(:,2), ':');
+       
 subplot(3,1,3)
 plot(dcmTrajectory(:,1), dcmTrajectory(:,2), ...
      dcmTrajectoryOld(:,1), dcmTrajectoryOld(:,2), '--')
+ 
+figure;
+subplot(2,1,1)
+plot(timeVector, cmpTrajectoryNew(:,1), timeVector, cmpTrajectory(:,1), '--')
+subplot(2,1,2)
+plot(timeVector, cmpTrajectoryNew(:,2), timeVector, cmpTrajectory(:,2), '--')
 
 % plan com trajectory
 [comTrajectory, comDotTrajectory] = planDiscreteCoMGivenDCM(dcmTrajectoryOld, ...
