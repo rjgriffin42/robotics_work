@@ -12,6 +12,22 @@ function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory, cmpTrajectory] = ...
   cmpInitial = dcmInitial;
   dcmEnd = 0.5 * (stepPlan{end}.pose(1:2) + stepPlan{end-1}.pose(1:2));
   cmpEnd = cmpTrajectory(end,:);
+
+ % compute final DCM position
+  for i = 1:length(stepPlan)
+    duration{i} = stepPlan{i}.duration;
+    if (stepPlan{i}.foot == 'l')
+      doubleSupportPoses{i} = leftFootPose;
+      singleSupportPoses{i} = rightFootPose;
+      leftFootPose = stepPlan{i}.pose;
+    else
+      doubleSupportPoses{i} = rightFootPose;
+      singleSupportPoses{i} = leftFootPose;
+      rightFootPose = stepPlan{i}.pose;
+    end
+  end
+  doubleSupportPoses{end+1} = singleSupportPoses{end};
+  singleSupportPoses{end+1} = (leftFootPose + rightFootPose) / 2;
   
   % compute vrp reference
   zInitial = 9.81 * ones(length(timeVector), 1) ./ (omegaTrajectory.^2 - ...
@@ -35,7 +51,12 @@ function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory, cmpTrajectory] = ...
     dcmTrajectory(i, :) = dcmTrajectory(i+1, :) + dt * dcmDotTrajectory(i, :);
   end
   
-  vrpTrajectory = dcmTrajectory - dcmDotTrajectory ./ omegaTrajectory;
+  size(dcmTrajectory)
+  size(dcmDotTrajectory)
+  size(omegaTrajectory)
+  for i = 1:length(dcmTrajectory)
+      vrpTrajectory(i,:) = dcmTrajectory(i,:) - dcmDotTrajectory(i,:) ./ omegaTrajectory(i);
+  end
   
 
   % assemble spline coefficient matrix
@@ -143,6 +164,6 @@ function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory, cmpTrajectory] = ...
   cmpTrajectory(:,1:2) = Phi * copKnots;
  
   for i = 1:length(dcmTrajectory)
-      vrpTrajectory(i,1:2) = dcmTrajectory(i,:) - dcmDotTrajectory(i,:) / omegaTrajectory(i);
+      vrpTrajectory(i,1:3) = dcmTrajectory(i,:) - dcmDotTrajectory(i,:) / omegaTrajectory(i);
   end
 end

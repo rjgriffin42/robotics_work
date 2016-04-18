@@ -77,21 +77,6 @@ cmpTrajectory = planDiscreteCMPTrajectory(copTrajectory, tauTrajectory, ...
 vrpTrajectory = planDiscreteVRPTrajectory(cmpTrajectory, omegaTrajectory, ...
     omegaDotTrajectory, timeVector);
 
- % compute final DCM position
-  for i = 1:length(stepPlan)
-    duration{i} = stepPlan{i}.duration;
-    if (stepPlan{i}.foot == 'l')
-      doubleSupportPoses{i} = leftFootPose;
-      singleSupportPoses{i} = rightFootPose;
-      leftFootPose = stepPlan{i}.pose;
-    else
-      doubleSupportPoses{i} = rightFootPose;
-      singleSupportPoses{i} = leftFootPose;
-      rightFootPose = stepPlan{i}.pose;
-    end
-  end
-  doubleSupportPoses{end+1} = singleSupportPoses{end};
-  singleSupportPoses{end+1} = (leftFootPose + rightFootPose) / 2;
 
 % plan dcm trajectory
 [dcmTrajectory, dcmDotTrajectory, vrpTrajectory, cmpTrajectoryNew] = ...
