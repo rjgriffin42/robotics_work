@@ -5,6 +5,10 @@ function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory, copTrajectory] = ...
 
   gravity = 9.81;
   timeVector = footstepPlan.timeVector;
+  stepPlan = footstepPlan.stepPlan;
+  numberOfSteps = length(stepPlan);
+  
+  knotsPerPhase = 11;
 
   % compute vrp reference
   zInitial = 9.81 * ones(length(timeVector), 1) ./ (omegaTrajectory.^2 - ...
@@ -12,7 +16,7 @@ function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory, copTrajectory] = ...
   vrpTrajectory = cmpTrajectory + [zeros(length(timeVector), 1) ...
       zeros(length(timeVector), 1) zInitial];
 
-  stepPlan = footstepPlan.stepPlan;
+ 
   % compute final DCM position
   for i = 1:length(stepPlan)
     duration{i} = stepPlan{i}.duration;
@@ -30,16 +34,21 @@ function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory, copTrajectory] = ...
   singleSupportPoses{end+1} = (leftFootPose + rightFootPose) / 2;
   
   % assemble spline coefficient matrix
-  totalTime = 0;
-  for step = 1:length(stepPlan)
-      totalTime = footstepPlan.doubleSupportDuration(step) + totalTime;
-      totalTime = footstepPlan.singleSupportDuration(step) + totalTime;
-  end
-  neededKnots = floor((totalTime / plannerDT) / (numberOfKnots - 1));
-  numberOfKnots = (totalTime / plannerDT) / neededKnots + 1;
-  segmentTime = totalTime / (numberOfKnots - 1);
-  for segment = 1:numberOfKnots-1
-      segmentDuration(segment) = segmentTime;
+  segmentsPerPhase = knotsPerPhase - 1;
+  numberOfKnots = 2 * segmentsPerPhase * numberOfSteps + 1;
+  segmentIndex = 0;
+  for step = 1:numberOfSteps
+      segmentTime = footstepPlan.doubleSupportDuration(step) / segmentsPerPhase;
+      for segment = segmentIndex+1:segmentIndex+segmentsPerPhase
+          segmentDuration(segment) = segmentTime;
+      end
+      segmentIndex = segmentIndex + segmentsPerPhase;
+      
+      segmentTime = footstepPlan.singleSupportDuration(step) / segmentsPerPhase;
+      for segment = segmentIndex+1:segmentIndex+segmentsPerPhase
+          segmentDuration(segment) = segmentTime;
+      end
+      segmentIndex = segmentIndex + segmentsPerPhase;
   end
   [betaMatrices, betaDotMatrices, betaDotDotMatrices] = ...
       computeCubicProjection(segmentDuration);
@@ -86,8 +95,6 @@ function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory, copTrajectory] = ...
      x = -inv(H) * h';
      dcmKnots = x(1:numberOfKnots,:);
      copKnots = x(numberOfKnots+1:2*numberOfKnots,:);
-     size(dcmKnots)
-     size(copKnots)
   
   dcmTrajectory(:,1:2) = Phi * dcmKnots;
   dcmDotTrajectory(:,1:2) = PhiDot * dcmKnots;
