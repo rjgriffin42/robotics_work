@@ -8,6 +8,7 @@ function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory, cmpTrajectory] = ...
                     0.5, -0.1;...
                    -0.5, -0.1;...
                    -0.5, 0.1];
+  numberOfContacts = 4;
 
   useDynamicsAsObjective = true;
   gravity = 9.81;
@@ -20,6 +21,10 @@ function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory, cmpTrajectory] = ...
   dcmEnd = 0.5 * (stepPlan{end}.pose(1:2) + stepPlan{end-1}.pose(1:2));
   cmpEnd = cmpTrajectory(end,:);
 
+  
+  leftFootPoseInitial = leftFootPose;
+  rightFootPoseInitial = rightFootPose;
+  
  % compute final DCM position
   for i = 1:length(stepPlan)
     duration{i} = stepPlan{i}.duration;
@@ -77,24 +82,70 @@ function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory, cmpTrajectory] = ...
   end
   %}
   
+  leftFootPose = leftFootPoseInitial;
+  rightFootPose = rightFootPoseInitial;
+  
   segmentIndex = 0;
+  constraintBetas = 0;
   numberOfSegments = knotsPerPhase - 1;
+  numberOfKnots = numberOfSegments * 2 * numberOfSteps + 1
   for step = 1:numberOfSteps
-      phaseTime = footstepPlan.doubleSupportDuration(step)
+      if stepPlan{step}.foot == 'l'
+          stanceFoot = rightFootPose;
+      else
+          stanceFoot = leftFootPose;
+      end
+      
+      % double support
+      phaseTime = footstepPlan.doubleSupportDuration(step);
       segmentTime = phaseTime / numberOfSegments;
       for segment = (segmentIndex+1):(segmentIndex+numberOfSegments);
           segmentDuration(segment) = segmentTime;
+          CE_x(segment, numberOfKnots + segment) = 1;
+          CE_y(segment, numberOfKnots + segment) = 1;
+          for j = 1:numberOfContacts
+              CE_x(segment, 2*numberOfKnots + constraintBetas+j) = leftFootPose(1) + footDimension(j,1);
+              CE_y(segment, 2*numberOfKnots + constraintBetas+j) = leftFootPose(2) + footDimension(j,2);
+              CI(segment, 2*numberOfKnots + constraintBetas+j) = 1;
+          end
+          constraintBetas = constraintBetas + 4;
+          for j = 1:numberOfContacts
+              CE_x(segment, 2*numberOfKnots + constraintBetas+j) = rightFootPose(1) + footDimension(j,1);
+              CE_y(segment, 2*numberOfKnots + constraintBetas+j) = rightFootPose(2) + footDimension(j,2);
+              CI(segment, 2*numberOfKnots + constraintBetas+j) = 1;
+          end
+          constraintBetas = constraintBetas + 4;
+          ce_x(segment) = 0;
+          ce_y(segment) = 0;
+          ci(segment) = 1;
       end
       segmentIndex = segmentIndex + numberOfSegments;
       
-      phaseTime = footstepPlan.singleSupportDuration(step)
+      % single support
+      phaseTime = footstepPlan.singleSupportDuration(step);
       segmentTime = phaseTime / numberOfSegments;
       for segment = (segmentIndex+1):(segmentIndex+numberOfSegments)
           segmentDuration(segment) = segmentTime;
+          CE_x(segment, numberOfKnots + segment) = 1;
+          CE_y(segment, numberOfKnots + segment) = 1;
+          for j = 1:numberOfContacts
+              CE_x(segment, 2*numberOfKnots + constraintBetas+j) = stanceFoot(1) + footDimension(j,1);
+              CE_y(segment, 2*numberOfKnots + constraintBetas+j) = stanceFoot(2) + footDimension(j,2);
+              CI(segment, 2*numberOfKnots + constraintBetas+j) = 1;
+          end
+          constraintBetas = constraintBetas + 4;
+          ce_x(segment) = 0;
+          ce_y(segment) = 0;
+          ci(segment) = 1;
       end
       segmentIndex = segmentIndex + numberOfSegments;
+      
+      if stepPlan{step}.foot == 'l'
+          leftFootPose = leftFootPose + stepPlan{step}.pose;
+      else
+          rightFootPose = rightFootPose + stepPlan{step}.pose;
+      end
   end
-  numberOfKnots = segmentIndex + 1;
   [betaMatrices, betaDotMatrices, betaDotDotMatrices] = ...
       computeCubicProjection(segmentDuration);
   

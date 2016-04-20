@@ -21,10 +21,11 @@ Q = 1e-2;
 R = 1e-4;
 F = 1e6;
 
-Qspline = 1e5;   % cmp tracking
-Rspline = 1e-2;  % dcm acceleration
+Qspline = 1e2;   % cmp tracking
+Rspline = 1e-4;  % dcm acceleration
 Vspline = 0;     % dcm velocity
-Dspline = 1e3;   % dcm dynamics
+Dspline = 1e5;   % dcm dynamics
+Qgoal = 1e5;     % dynamic walking
 numberOfKnots = 100;
 
 % define initial conditions
@@ -83,12 +84,17 @@ vrpTrajectory = planDiscreteVRPTrajectory(cmpTrajectory, omegaTrajectory, ...
 [dcmTrajectorySpline, dcmDotTrajectorySpline, vrpTrajectorySpline, copTrajectorySpline] = ...
     planDynamicDCMSpline(cmpTrajectory, leftFootPoseInitial, ...
     rightFootPoseInitial, footstepPlan, omegaTrajectory, omegaDotTrajectory, ...
-    dcmInitial, dcmDotInitial, numberOfKnots, plannerDT, Qspline, Rspline, Vspline, Dspline);
+    dcmInitial, dcmDotInitial, numberOfKnots, plannerDT, Qspline, Rspline, Vspline, Dspline, Qgoal);
 
 % plan continuous double support dcm trajectory
 [dcmTrajectoryCDS, dcmDotTrajectoryCDS, vrpTrajectoryCDS] = ...
     planCDSClosedFormDCM(footstepPlan, doubleSupportRatio, plan_alpha,...
     dcmInitial, omegaInitial, plannerDT, initialDoubleSupportDuration);
+
+% plan continuous double support dcm trajectory
+[dcmTrajectoryClosed, dcmDotTrajectoryClosed] = ...
+    planClosedFormDCM(footstepPlan,...
+    dcmInitial, omegaInitial, plannerDT);
 
 % plan using the discrete method
 [dcmTrajectoryDiscrete, dcmDotTrajectoryDiscrete, vrpTrajectoryDiscrete] = ...
@@ -96,21 +102,38 @@ vrpTrajectory = planDiscreteVRPTrajectory(cmpTrajectory, omegaTrajectory, ...
     rightFootPoseInitial, stepPlan, omegaTrajectory, omegaDotTrajectory, ...
     dcmInitial, dcmDotInitial, timeVector, Q, R, F);
 
+dcmTrajectorySpline(:,3) = dcmTrajectoryDiscrete(:,3);
+% compute spline and discrete com trajectories
+[comTrajectorySpline, comDotTrajectorySpline] = planDiscreteCoMGivenDCM(dcmTrajectorySpline, ...
+    omegaTrajectory, comInitial, timeVector);
+[comTrajectoryCDS, comDotTrajectoryCDS] = planDiscreteCoMGivenDCM(dcmTrajectoryCDS, ...
+    omegaTrajectory, comInitial, timeVector);
+[comTrajectoryDiscrete, comDotTrajectoryDiscrete] = planDiscreteCoMGivenDCM(dcmTrajectoryDiscrete, ...
+    omegaTrajectory, comInitial, timeVector);
+
 figure;
-subplot(3,1,1)
+subplot(3,2,1)
 plot(timeVector, dcmTrajectorySpline(:,1), timeVector, dcmTrajectoryCDS(:,1), '--',...
-    timeVector, dcmTrajectoryDiscrete(:,1), '-.');
+    timeVector, dcmTrajectoryDiscrete(:,1), '-.', timeVector, dcmTrajectoryClosed(:,1), ':');
 
-subplot(3,1,2)
+subplot(3,2,3)
 plot(timeVector, dcmTrajectorySpline(:,2), timeVector, dcmTrajectoryCDS(:,2), '--', ...
-    timeVector, dcmTrajectoryDiscrete(:,2), '-.');
+    timeVector, dcmTrajectoryDiscrete(:,2), '-.', timeVector, dcmTrajectoryClosed(:,2), ':');
 
-subplot(3,1,3)
-plot(dcmTrajectorySpline(:,1), dcmTrajectorySpline(:,2), vrpTrajectory(:,1), vrpTrajectory(:,2))
+subplot(3,2,2)
+plot(timeVector, comTrajectorySpline(:,1), timeVector, comTrajectoryCDS(:,1),...
+    timeVector, comTrajectoryDiscrete(:,1), '-.');
 
-figure;
-subplot(3,1,1)
-plot(timeVector, copTrajectorySpline(:,1), timeVector, cmpTrajectory(:,1), '--');
+subplot(3,2,4)
+plot(timeVector, comTrajectorySpline(:,2), timeVector, comTrajectoryCDS(:,2), '--',...
+    timeVector, comTrajectoryDiscrete(:,2), '-.');
 
-subplot(3,1,2)
-plot(timeVector, copTrajectorySpline(:,2), timeVector, cmpTrajectory(:,2), '--');
+subplot(3,2,[5, 6])
+plot(dcmTrajectorySpline(:,1), dcmTrajectorySpline(:,2), vrpTrajectory(:,1), vrpTrajectory(:,2),...
+    dcmTrajectoryClosed(:,1), dcmTrajectoryClosed(:,2),':')
+
+draw_foot_2d(leftFootPoseInitial)
+draw_foot_2d(rightFootPoseInitial)
+for i = 1:length(stepPlan)
+    draw_foot_2d(stepPlan{i}.pose)
+end

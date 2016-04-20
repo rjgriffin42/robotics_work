@@ -132,13 +132,11 @@ function [dcmTrajectory, dcmDotTrajectory, vrpTrajectory] = ...
      g = omegaTrajectory(1) * Q * cmpTrajectory(:,1:2)' * (PhiDot - omegaTrajectory(1) * Phi);
      
      H = [G CE'; CE zeros(size(CE,1))];
-     size(g)
-     size(ce)
      h = [g -ce'];
 
      % solve problem
      x = -inv(H) * h';
-     knots = x(1:numberOfKnots,:)
+     knots = x(1:numberOfKnots,:);
   end
   
   dcmTrajectory(:,1:2) = Phi * knots;
