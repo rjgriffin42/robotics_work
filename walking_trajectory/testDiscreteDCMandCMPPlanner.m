@@ -13,6 +13,7 @@ doubleSupportRatio = 0.15; % double support ratio
 comHeightNominal = 0.85; % nominal com height;
 toeOffRatio = 0.7;
 heelStrikeRatio = 0.0;
+initialDoubleSupportTime = 0.15;
 
 % define LQR parameters
 Q = 1;
@@ -48,7 +49,8 @@ N = min(length(timeVector), length(timeVector));
 stepPlan = transformStepPlanToInertialFrame(leftFootPoseInitial, ...
               rightFootPoseInitial, stepPlan);
 
-footstepPlan = computeFootstepPlan(stepPlan, doubleSupportRatio, plannerDT);
+footstepPlan = computeFootstepPlan(stepPlan, doubleSupportRatio, plannerDT,...
+    initialDoubleSupportTime);
 
 % plan cop trajectory
 copTrajectory = planDiscreteCOPToeOff(leftFootPoseInitial, rightFootPoseInitial, ...
